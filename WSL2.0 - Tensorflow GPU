@@ -1,1 +1,63 @@
-aaaaa
+REQUIREMENTS:
+  * Install NVIDIA Driver based on your Graphics card from "https://www.nvidia.com/download/index.aspx?lang=en-us"
+
+
+STEPS:
+  1. Install WSL "Ubuntu" distribution using the following command: wsl --install
+      - To change to wsl2.0 version run the following command: wsl --set-version <distro name> 2
+      - To see all WSL installed distributions run the following command: wsl --list --verbose
+      - To remove WSL distribution run the following command: wsl --unregister <distro name>
+      - To Enter specific WSL distribution run the following command: wsl -d <distro name>
+
+  2. Install Anaconda/Miniconda3 for easier package management and deployment.
+      - To download Miniconda3 run the following command from wsl: curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o Miniconda3-latest-Linux-x86_64.sh
+      - To install the Miniconda package run: bash Miniconda3-latest-Linux-x86_64.sh
+      - Create conda environment with the following command: conda create --name <env name> python=3.9
+      - To enter the environment run the command: conda activate <env name>
+      - To exit environment run the command: conda deactivate
+
+  3. Verify that GPU drivers are installed using the command: nvidia-smi
+
+  4. Install cudatoolkit using the command: conda install -c conda-forge cudatoolkit=11.8.0
+
+  5. Install nvidia cudnn using the following command: pip install nvidia-cudnn-cu11==8.6.0.163
+
+  6. Configure System PATHS using the following commands:
+      - mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+      - echo 'CUDNN_PATH=$(dirname $(python -c "import nvidia.cudnn;print(nvidia.cudnn.__file__)"))' >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+      - echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDNN_PATH/lib:$CONDA_PREFIX/lib/' >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+      - Verify the environment variables using: printenv LD_LIBRARY_PATH
+
+  7. Install tensorflow 2.11 using the command: pip install tensorflow==2.11.*
+
+  8. Verify that tensorflow works with gpu with the command: python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+      - We should see the following line: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+
+At this point our tensorflow is working with the gpu.
+------------------------------------------------------------------------------------------------------------------------------------
+
+While running a model if we get the following error:
+  "I tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:424] Loaded cuDNN version 8600
+  Could not load library libcudnn_cnn_infer.so.8. Error: libcuda.so: cannot open shared object file: No such file or directory"
+
+We have to do some extra steps:
+  1. Go to the following path: /usr/lib/wsl/lib/
+  2. Backup the following files: "libcuda.so.1" and "libcuda.so"
+  3. Remove the files "libcuda.so.1" and "libcuda.so" using the commands:
+      - rm -r libcuda.so.1
+      - rm -r libcuda.so
+  4. Create file links with the following commands:
+      - ln -s libcuda.so.1.1 libcuda.so.1
+      - ln -s libcuda.so.1.1 libcuda.so
+      - sudo ldconfig
+  5. Install conda nvcc with the following command: conda install -c nvidia cuda-nvcc=11.3.58
+  6. Configure PATHS with the following commands:
+      - printf 'export XLA_FLAGS=--xla_gpu_cuda_data_dir=$CONDA_PREFIX/lib/\n' >> $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+      - source $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+      - mkdir -p $CONDA_PREFIX/lib/nvvm/libdevice
+      - cp $CONDA_PREFIX/lib/libdevice.10.bc $CONDA_PREFIX/lib/nvvm/libdevice/
+
+DONE
+
+
+
